@@ -1,0 +1,31 @@
+{
+  "name": "frontend-stories",
+  "version": "0.0.1",
+  "description": "my frontend stories",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "docz:dev": "docz dev",
+    "docz:build": "docz build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ifiknew/frontend-stories.git"
+  },
+  "keywords": [
+    "frontend",
+    "stories"
+  ],
+  "author": "ifiknew",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ifiknew/frontend-stories/issues"
+  },
+  "homepage": "https://github.com/ifiknew/frontend-stories#readme",
+  "devDependencies": {
+    "docz": "^1.0.4",
+    "docz-theme-default": "^1.0.4"
+  }
+}
