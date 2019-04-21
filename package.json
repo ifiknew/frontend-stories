@@ -9,7 +9,7 @@
   "scripts": {
     "docz:dev": "docz dev",
     "docz:build": "DOCZ_BASE='/frontend-stories/' docz build",
-    "commit": "node scripts/commit.js"
+    "sync": "node scripts/sync.js"
   },
   "repository": {
     "type": "git",
