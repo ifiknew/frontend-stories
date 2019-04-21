@@ -45,6 +45,8 @@ createAt: 2019-04-21
 >1. Serves the specified output directory using express
 >2. Loads each provided route using Nightmare
 >3. Saves the HTML of each route to the filesystem
+### multiple index.html
+另外一种方案就是把所有可能的路由用CopyWebpackPlugin的方式将index.html文件复制到各个位置了。个人觉得如果都是SPA不考虑SEO的话，redirect方案会比这个方案舒服一点。
 
 
 ## Reference
