@@ -25,7 +25,9 @@
   },
   "homepage": "https://github.com/ifiknew/frontend-stories#readme",
   "devDependencies": {
+    "copy-webpack-plugin": "^5.0.2",
     "docz": "^1.0.4",
-    "docz-theme-default": "^1.0.4"
+    "docz-theme-default": "^1.0.4",
+    "webpack-static-site-generator": "^1.2.3"
   }
 }
