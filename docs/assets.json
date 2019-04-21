@@ -1,14 +1,14 @@
 {
   "vendors.js": "/frontend-stories/static/js/vendors.90831558.js",
-  "vendors.js.map": "/frontend-stories/static/js/vendors.46e54e1d7eb38eb86ee9.js.map",
-  "app.js": "/frontend-stories/static/js/app.46e54e1d7eb38eb86ee9.js",
-  "app.js.map": "/frontend-stories/static/js/app.46e54e1d7eb38eb86ee9.js.map",
+  "vendors.js.map": "/frontend-stories/static/js/vendors.50369736b8c42d830216.js.map",
+  "app.js": "/frontend-stories/static/js/app.50369736b8c42d830216.js",
+  "app.js.map": "/frontend-stories/static/js/app.50369736b8c42d830216.js.map",
   "src-webpack-github-page-spa-404-issue.js": "/frontend-stories/static/js/src-webpack-github-page-spa-404-issue.bdc205cb.js",
-  "src-webpack-github-page-spa-404-issue.js.map": "/frontend-stories/static/js/src-webpack-github-page-spa-404-issue.46e54e1d7eb38eb86ee9.js.map",
+  "src-webpack-github-page-spa-404-issue.js.map": "/frontend-stories/static/js/src-webpack-github-page-spa-404-issue.50369736b8c42d830216.js.map",
   "src-webpack-plugin-copy-webpack-plugin.js": "/frontend-stories/static/js/src-webpack-plugin-copy-webpack-plugin.9bc09f55.js",
-  "src-webpack-plugin-copy-webpack-plugin.js.map": "/frontend-stories/static/js/src-webpack-plugin-copy-webpack-plugin.46e54e1d7eb38eb86ee9.js.map",
+  "src-webpack-plugin-copy-webpack-plugin.js.map": "/frontend-stories/static/js/src-webpack-plugin-copy-webpack-plugin.50369736b8c42d830216.js.map",
   "src-webpack-webpack-optimization.js": "/frontend-stories/static/js/src-webpack-webpack-optimization.b5e52644.js",
-  "src-webpack-webpack-optimization.js.map": "/frontend-stories/static/js/src-webpack-webpack-optimization.46e54e1d7eb38eb86ee9.js.map",
+  "src-webpack-webpack-optimization.js.map": "/frontend-stories/static/js/src-webpack-webpack-optimization.50369736b8c42d830216.js.map",
   "404.html": "/frontend-stories/404.html",
   "index.html": "/frontend-stories/index.html"
 }

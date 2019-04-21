@@ -1,4 +1,3 @@
-const StaticSiteGenerator = require('webpack-static-site-generator')
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path')
 export default {

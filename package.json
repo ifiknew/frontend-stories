@@ -1,7 +1,7 @@
 {
   "name": "frontend-stories",
   "version": "0.0.1",
-  "description": "my frontend stories",
+  "description": "My personal frontend stories, about work, issues and ideas.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -16,7 +16,8 @@
   },
   "keywords": [
     "frontend",
-    "stories"
+    "stories",
+    "ifiknew"
   ],
   "author": "ifiknew",
   "license": "MIT",
@@ -27,7 +28,6 @@
   "devDependencies": {
     "copy-webpack-plugin": "^5.0.2",
     "docz": "^1.0.4",
-    "docz-theme-default": "^1.0.4",
-    "webpack-static-site-generator": "^1.2.3"
+    "docz-theme-default": "^1.0.4"
   }
 }
