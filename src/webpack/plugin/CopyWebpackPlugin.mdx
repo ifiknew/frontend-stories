@@ -2,3 +2,25 @@
 menu: webpack/plugin
 createAt: 2019-04-21
 ---
+# CopyWebpackPlugin 用法
+## Signature
+CopyWebpackPlugin的构造函数接收两个参数
+```
+module.exports = {
+  plugins: [new CopyPlugin(patterns, options)],
+}
+```
+patterns用来定制文件拷贝和转换的规则，以下列出一些常见的选项
+```
+interface Patterns {
+  from: string | object, // 文件来源，可以是路径或者glob，官方的glob示例为{ glob: '**/*', dot: false },
+  to: string, // 输出路径
+  toType: 'dir' | 'file' | 'template', // 其中template表示to需要由一定的规则生成，例如'dest/[name].[hash].[ext]'
+  ignore: Array<string>, // 忽略的文件正则,
+  transform: (source: string, path: string) => string | Promise<string>, // 拷贝时将文件进行转换，例如文件压缩
+}
+```
+options不太常用，这里忽略。
+
+## Usage
+这个plugin的主要作用就是用来拷贝文件的。所以常见的一种使用场景是在部署前把node_modules里的umd代码文件拷贝到静态目录输出，并且使用配置external的方式引入。在节省webpack打包时间的同时能稳定做到分包和使用缓存。需要注意的是，通常这些代码文件不带版本号，需要自行标记这些文件的版本号，以避免在umd包版本更新后用户仍然使用的是旧版本的文件强缓存。另一种使用场景是把一些资源文件拷贝到输出目录，例如icon，image等文件，在代码里只要写静态的文件目录就可以了，不必要使用file-loader（仍然需要注意强缓存问题）。
