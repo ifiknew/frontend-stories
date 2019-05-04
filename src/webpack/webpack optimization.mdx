@@ -3,3 +3,18 @@ menu: webpack
 createAt: 2019-04-20
 ---
 # 基于webpack 4 的配置优化
+
+## Background
+从来没想过会有一天16G内存4核心会带不动一个前端项目。事实上我的个人情况是，工作中每次修改保存都需要再次编译2分钟以上，这是不可容忍的。于是进行了webpack4的升级。（不过我觉得要是物资那里愿意给我重新配一台32G内存8核心的电脑也是极好的）
+
+## Configuration
+升级到webpack4，主要参照了create-react-app对于webpack4的相关配置进行，以下使用CRA来代指。一个题外话是当我开始进行优化的过程中发生了两个大事件，一是CRA发布了版本v3；二是Nodejs发布了v12.0。CRA在v2+版本的升级中主要如下的变化。
+### Config File
+在之前的版本中，config文件分为dev和pro两个版本分别维护，在新版本中config中默认导出的是一个函数，签名为：
+```
+(env: 'develop' | 'production') => WebpackConfig
+```
+事实上，这就是一个可以产生两种环境下webpack config的简单工厂。在日常的配置工作中，经常会担心改了一个环境的config忘了改另外一个，现在的方式能够很好的避免这点，减少在配置时的关注点，降低出错的概率。相应地，由于config的获取形式发生变化，在scripts文件夹下的start和build脚本也进行了相应更改。
+### Babel with TS Support
+在新版的Babel中加入了对ts的支持，所以项目在升级时可以丢弃掉ts-loader的相关配置，直接使用babel-loader。注意配置相关的preset（可以使用CRA提供的'react-app'这个preset，基本囊括了所有的需求）。需要注意的是babel只针对单文件进行转换，并没有分析模块之间的关系，形成了事实上的isolatedModules。
+在使用babel对项目内的js文件做转换的同时，应该对一些单独的模块不做转换直接引入（如已经编译好的js文件，外部的js模块）。它们之间使用oneof来进行配置防止loader重复使用。
