@@ -16,5 +16,31 @@ createAt: 2019-04-20
 ```
 事实上，这就是一个可以产生两种环境下webpack config的简单工厂。在日常的配置工作中，经常会担心改了一个环境的config忘了改另外一个，现在的方式能够很好的避免这点，减少在配置时的关注点，降低出错的概率。相应地，由于config的获取形式发生变化，在scripts文件夹下的start和build脚本也进行了相应更改。
 ### Babel with TS Support
-在新版的Babel中加入了对ts的支持，所以项目在升级时可以丢弃掉ts-loader的相关配置，直接使用babel-loader。注意配置相关的preset（可以使用CRA提供的'react-app'这个preset，基本囊括了所有的需求）。需要注意的是babel只针对单文件进行转换，并没有分析模块之间的关系，形成了事实上的isolatedModules。
-在使用babel对项目内的js文件做转换的同时，应该对一些单独的模块不做转换直接引入（如已经编译好的js文件，外部的js模块）。它们之间使用oneof来进行配置防止loader重复使用。
+在新版的Babel中加入了对ts的支持，所以项目在升级时可以丢弃掉ts-loader的相关配置，直接使用babel-loader。注意配置相关的preset（可以使用CRA提供的'react-app'这个preset，基本囊括了所有的需求）。需要注意的是babel只针对单文件进行转换，并没有分析模块之间的关系，形成了事实上的isolatedModules。  
+在使用babel对项目内的js文件做转换的同时，应该对一些单独的模块不做转换直接引入（如已经编译好的js文件，外部的js模块）。它们之间使用oneof来进行配置防止loader重复使用。  
+cache的使用也是一个需要关注的点。在babel-loader的官方文档中提到option中的一个可配置项：
+
+> cacheDirectory: Default false. When set, the given directory will be used to cache the results of the loader.
+
+对于我写本文时正在处理的前端项目（约有5700modules）而言，使用cache的文件转换时间从170s降到了100s。需要处理的是在docker中使用缓存（目前我们是拉取git代码后拷贝到临时目录，在临时目录做build来实现clean，利用缓存则需要保存每次编译后生成的缓存文件）
+
+### Terser
+CRA在新版本中使用的代码压缩方案是terser而不是uglifyjs。为什么使用terser在terser的文档中也有解释。
+
+> uglify-es is no longer maintained and uglify-js does not support ES6+.terser is a fork of uglify-es that retains API and CLI compatibility with uglify-es and uglify-js@3.
+
+如果在仅需编译到es6的模块而言，应该使用terser而不是uglifyjs。terser-webpack-plugin的配置里也提供了缓存选项，缓存导致的编译速度提升十分显著，在本文提及的前端项目里由170s提升到30s。
+
+### SplitChunkPlugin(core)
+webpack4升级的一个重点应该就是这个SplitChunkPlugin了。作为新版本的一个核心模块，直接被配置到了optimization.splitChunks中，并且直接废弃了之前使用的CommonsChunkPlugin。
+
+>Since webpack v4, the CommonsChunkPlugin was removed in favor of optimization.splitChunks.
+
+SplitChunkPlugin的默认配置相比于CommonsChunkPlugin已经做了一些足够的优化
+
+>New chunk can be shared OR modules are from the node_modules folder  
+New chunk would be bigger than 30kb (before min+gz)  
+Maximum number of parallel requests when loading chunks on demand would be lower or equal to 5  
+Maximum number of parallel requests at initial page load would be lower or equal to 3  
+
+一个主要的特性是将node_modules中的文件尽可能地与项目主体代码分开，充分利用缓存的能力来优化访问速度。配合webpack-bundle-analyzer，需要定制化地做一些处理。比如将一些仍然多次被打包的大模块单独分一个cacheGroups。
