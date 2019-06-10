@@ -1,0 +1,118 @@
+---
+menu: typescript
+createAt: 2019-04-21
+---
+# 记录一次使用react-docgen-typescript的坑
+
+## Background
+之前有一个idea是做一个组件可视化编辑器，可以通过dnd的方式来编辑组件和生成代码。其中的设想包括使用react-docgen-typescript来抓取组件的propTypes，生成组件props的可视化编辑面板。遇到的问题是使用如下的方式
+```js
+const path = require('path')
+console.log(
+  require('react-docgen-typescript')
+  .parse(
+    path.join(__dirname, 'Test.tsx'),
+  )
+)
+```
+打印出的内容为空数组。  
+
+## Debug
+调试的过程是使用vscode配置debug工具，把断点打在.parse方法上。  
+```js
+/**
+ * Parses a file with default TS options
+ * @param filePath component file that should be parsed
+ */
+function parse(filePathOrPaths, parserOpts) {
+    if (parserOpts === void 0) { parserOpts = exports.defaultParserOpts; }
+    return withCompilerOptions(defaultOptions, parserOpts).parse(filePathOrPaths);
+}
+```
+parse方法的内容是检查是否存在默认的parserOpts，然后调用withCompilerOptions方法返回的对象的parse方法。  
+```js
+/**
+ * Constructs a parser for a specified set of TS compiler options.
+ */
+function withCompilerOptions(compilerOptions, parserOpts) {
+    if (parserOpts === void 0) { parserOpts = exports.defaultParserOpts; }
+    return {
+        parse: function (filePathOrPaths) {
+            return parseWithProgramProvider(filePathOrPaths, compilerOptions, parserOpts);
+        },
+        parseWithProgramProvider: function (filePathOrPaths, programProvider) {
+            return parseWithProgramProvider(filePathOrPaths, compilerOptions, parserOpts, programProvider);
+        }
+    };
+}
+```
+直到这里还没有到代码的核心部分，逻辑基本上都在处理默认参数问题，直到调用parseWithProgramProvider
+```js
+function parseWithProgramProvider(filePathOrPaths, compilerOptions, parserOpts, programProvider) {
+    var filePaths = Array.isArray(filePathOrPaths)
+        ? filePathOrPaths
+        : [filePathOrPaths];
+    var program = programProvider
+        ? programProvider()
+        : ts.createProgram(filePaths, compilerOptions);
+    var parser = new Parser(program, parserOpts);
+    var checker = program.getTypeChecker();
+    return filePaths
+        .map(function (filePath) { return program.getSourceFile(filePath); })
+        .filter(function (sourceFile) {
+        return typeof sourceFile !== 'undefined';
+    })
+        .reduce(function (docs, sourceFile) {
+        var moduleSymbol = checker.getSymbolAtLocation(sourceFile);
+        if (!moduleSymbol) {
+            return docs;
+        }
+        Array.prototype.push.apply(docs, checker
+            .getExportsOfModule(moduleSymbol)
+            .map(function (exp) {
+            return parser.getComponentInfo(exp, sourceFile, parserOpts.componentNameResolver);
+        })
+            .filter(function (comp) { return comp !== null; })
+            .filter(function (comp, index, comps) {
+            return comps
+                .slice(index + 1)
+                .every(function (innerComp) { return innerComp.displayName !== comp.displayName; });
+        }));
+        return docs;
+    }, []);
+}
+```
+核心代码分为几个部分
+- 预处理：格式化filePaths为Array
+- 实例化：program、parser和checker需要获取到实例。program和checker是Typescript API中的概念，稍后对Typescript API进行说明。parser是react-docgen-typescript中直接操作Typescript API的类。其中定义了很多使用Typescript API来抓取.tsx?文件结构和内容的方法，同样稍后进行说明。
+- 返回值处理：将所有的输入文件路径，经过如下步骤的管道：1.根据文件路径获取文件信息；2.过滤找不到文件信息的项目；3.对每一个文件，寻找其模块导出的内容，转化为组件信息，过滤空数据后加入到返回的队列中。
+
+## Typescript API
+在了解react-docgen-typescript的解析逻辑之前，需要先对Typescript API相关的内容进行介绍。
+```js
+    /**
+     * Create a new 'Program' instance. A Program is an immutable collection of 'SourceFile's and a 'CompilerOptions'
+     * that represent a compilation unit.
+     *
+     * Creating a program proceeds from a set of root files, expanding the set of inputs by following imports and
+     * triple-slash-reference-path directives transitively. '@types' and triple-slash-reference-types are also pulled in.
+     *
+     * @param rootNames - A set of root files.
+     * @param options - The compiler options which should be used.
+     * @param host - The host interacts with the underlying file system.
+     * @param oldProgram - Reuses an old program structure.
+     * @param configFileParsingDiagnostics - error during config file parsing
+     * @returns A 'Program' object.
+     */
+    function createProgram(rootNames: ReadonlyArray<string>, options: CompilerOptions, host?: CompilerHost, oldProgram?: Program, configFileParsingDiagnostics?: ReadonlyArray<Diagnostic>): Program;
+    /** @deprecated */ interface ResolveProjectReferencePathHost {
+        fileExists(fileName: string): boolean;
+    }
+```
+createProgram方法创建了一个“Program”对象，代表了一个编译单元（一个编译单元包括需要转换的文件队列和编译选项）。
+
+## todo
+还没完
+
+## Conclusion
+在使用typescript相关API时需要先加载对应的类型定义文件啊！！！
