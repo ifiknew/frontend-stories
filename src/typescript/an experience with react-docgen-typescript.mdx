@@ -1,11 +1,7 @@
----
-menu: typescript
-createAt: 2019-04-21
----
-# 记录一次使用react-docgen-typescript的坑
+# 记录一次react-docgen-typescript经历
 
 ## Background
-之前有一个idea是做一个组件可视化编辑器，可以通过dnd的方式来编辑组件和生成代码。其中的设想包括使用react-docgen-typescript来抓取组件的propTypes，生成组件props的可视化编辑面板。遇到的问题是使用如下的方式
+之前有一个idea是做一个组件可视化编辑器，可以通过dnd的方式来编辑组件和生成代码。其中的设想包括使用react-docgen-typescript来抓取组件的propTypes，生成组件props的可视化编辑面板。遇到的问题是对类组件使用如下的方式
 ```js
 const path = require('path')
 console.log(
@@ -15,9 +11,9 @@ console.log(
   )
 )
 ```
-打印出的内容为空数组。  
+打印出的内容为空数组，而函数组件正常。
 
-## Debug
+## Understanding parseWithProgramProvider
 调试的过程是使用vscode配置debug工具，把断点打在.parse方法上。  
 ```js
 /**
@@ -109,10 +105,150 @@ function parseWithProgramProvider(filePathOrPaths, compilerOptions, parserOpts, 
         fileExists(fileName: string): boolean;
     }
 ```
-createProgram方法创建了一个“Program”对象，代表了一个编译单元（一个编译单元包括需要转换的文件队列和编译选项）。
+createProgram静态方法创建了一个“Program”对象，代表了一个编译单元（一个编译单元包括需要转换的文件队列和编译选项）。
+```js
+    /**
+     * Gets a type checker that can be used to semantically analyze source files in the program.
+     */
+    getTypeChecker(): TypeChecker;
+```
+Program的getTypeChecker成员方法可以获取一个TypeChecker，它用来分析源文件的语义。
+```js
+    /**
+     * Get the source file in the program with file name
+     */
+    getSourceFile(fileName: string): SourceFile | undefined;
+```
+Program的getSourceFile成员方法用以根据文件路径获取到SourceFile（源文件信息）。SourceFile上有一些针对源文件代码行、字符与位置的互相转换的方法，也可以通过update方法更新源文件。
+```js
+  getSymbolAtLocation(node: Node): Symbol | undefined;
+```
+Checker的getSymbolAtLocation成员方法可以获得节点的描述符（可以这么翻译吗）,作为一个esm模块返回的内容包括{ exports: Map, declarations: [SourceFileObject] }等等，该描述符的flags为512（SymbolFlags.ValueModule）。
+```js
+  getExportsOfModule(moduleSymbol: Symbol): Symbol[];
+```
+Checker的getExportsOfModule成员方法用来直接拿到模块的导出（Array形式），一个基础的tsx组件，包括导入react、导出props接口定义、默认导出类定义，调用getExportsOfModule则会拿到2个模块的导出，第一个的flags为64（SymbolFlags.Interface），第二个为32（SymbolFlags.Class）。
+Parser的成员方法parseWithProgramProvider中依赖的Typescript API均已介绍完毕，在该方法中调用了自身实例的getComponentInfo方法还依赖以下一些Typescript API。
+```js
+  getTypeOfSymbolAtLocation(symbol: Symbol, node: Node): Type;
+```
+Checker的getTypeOfSymbolAtLocation成员方法用来获取描述符的类型定义。
 
-## todo
+## Understanding getComponentInfo
+```js
+    Parser.prototype.getComponentInfo = function (exp, source, componentNameResolver) {
+        if (componentNameResolver === void 0) { componentNameResolver = function () { return undefined; }; }
+        if (!!exp.declarations && exp.declarations.length === 0) {
+            return null;
+        }
+        var type = this.checker.getTypeOfSymbolAtLocation(exp, exp.valueDeclaration || exp.declarations[0]);
+        var commentSource = exp;
+        if (!exp.valueDeclaration) {
+            if (!type.symbol) {
+                return null;
+            }
+            exp = type.symbol;
+            var expName = exp.getName();
+            if (expName === 'StatelessComponent' ||
+                expName === 'Stateless' ||
+                expName === 'StyledComponentClass' ||
+                expName === 'FunctionComponent') {
+                commentSource = this.checker.getAliasedSymbol(commentSource);
+            }
+            else {
+                commentSource = exp;
+            }
+        }
+        // Skip over PropTypes that are exported
+        if (type.symbol &&
+            (type.symbol.getEscapedName() === 'Requireable' ||
+                type.symbol.getEscapedName() === 'Validator')) {
+            return null;
+        }
+        var propsType = this.extractPropsFromTypeIfStatelessComponent(type) ||
+            this.extractPropsFromTypeIfStatefulComponent(type);
+        var resolvedComponentName = componentNameResolver(exp, source);
+        var displayName = resolvedComponentName || computeComponentName(exp, source);
+        var description = this.findDocComment(commentSource).fullComment;
+        var methods = this.getMethodsInfo(type);
+        if (propsType) {
+            var defaultProps = this.extractDefaultPropsFromComponent(exp, source);
+            var props = this.getPropsInfo(propsType, defaultProps);
+            for (var _i = 0, _a = Object.keys(props); _i < _a.length; _i++) {
+                var propName = _a[_i];
+                var prop = props[propName];
+                var component = { name: displayName };
+                if (!this.propFilter(prop, component)) {
+                    delete props[propName];
+                }
+            }
+            return {
+                description: description,
+                displayName: displayName,
+                methods: methods,
+                props: props
+            };
+        }
+        else if (description && displayName) {
+            return {
+                description: description,
+                displayName: displayName,
+                methods: methods,
+                props: {}
+            };
+        }
+        return null;
+    };
+```
+Parser的getComponentInfo成员方法有关于props的部分是：先根据parseWithProgramProvider中拿到的导出模块使用checker中的getTypeOfSymbolAtLocation方法拿到类型定义，然后调用自身的extractPropsFromTypeIfStatelessComponent方法，如果是函数组件则可以拿到props信息，如果返回为空则尝试使用extractPropsFromTypeIfStatefulComponent方法，从类组件中拿到对应的props信息。最后调用自身的getPropsInfo方法从propsType中提取到类型定义。
+
+## Understanding extractPropsFromTypeIfStatelessComponent
+```js
+    Parser.prototype.extractPropsFromTypeIfStatelessComponent = function (type) {
+        var callSignatures = type.getCallSignatures();
+        if (callSignatures.length) {
+            // Could be a stateless component.  Is a function, so the props object we're interested
+            // in is the (only) parameter.
+            for (var _i = 0, callSignatures_1 = callSignatures; _i < callSignatures_1.length; _i++) {
+                var sig = callSignatures_1[_i];
+                var params = sig.getParameters();
+                if (params.length === 0) {
+                    continue;
+                }
+                // Maybe we could check return type instead,
+                // but not sure if Element, ReactElement<T> are all possible values
+                var propsParam = params[0];
+                if (propsParam.name === 'props' || params.length === 1) {
+                    return propsParam;
+                }
+            }
+        }
+        return null;
+    };
+```
+函数组件都是(props: IProps) => React.ReactNode的形式，所以只要拿到函数类型的调用签名的入参第一项就可以了。
+## Understanding extractPropsFromTypeIfStatefulComponent
+```js
+    Parser.prototype.extractPropsFromTypeIfStatefulComponent = function (type) {
+        var constructSignatures = type.getConstructSignatures();
+        if (constructSignatures.length) {
+            // React.Component. Is a class, so the props object we're interested
+            // in is the type of 'props' property of the object constructed by the class.
+            for (var _i = 0, constructSignatures_1 = constructSignatures; _i < constructSignatures_1.length; _i++) {
+                var sig = constructSignatures_1[_i];
+                var instanceType = sig.getReturnType();
+                var props = instanceType.getProperty('props');
+                if (props) {
+                    return props;
+                }
+            }
+        }
+        return null;
+    };
+```
+如果是类组件，react-docgen-typescript的实现方式是先获取类的类型的构造器签名，然后拿到它的返回值类型中的props定义。
+
+## todo 
 还没完
-
 ## Conclusion
 在使用typescript相关API时需要先加载对应的类型定义文件啊！！！
