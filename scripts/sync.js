@@ -4,7 +4,7 @@
  */
 const childProcess = require('child_process')
 
-const [ , , commitMessage] = process.argv
+const [ , , commitMessage = 'sync docs'] = process.argv
 
 console.log('building docz')
 try {
