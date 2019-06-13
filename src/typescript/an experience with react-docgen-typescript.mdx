@@ -1,3 +1,6 @@
+---
+menu: typescript
+---
 # 记录一次react-docgen-typescript经历
 
 ## Background
@@ -246,9 +249,32 @@ Parser的getComponentInfo成员方法有关于props的部分是：先根据parse
         return null;
     };
 ```
-如果是类组件，react-docgen-typescript的实现方式是先获取类的类型的构造器签名，然后拿到它的返回值类型中的props定义。
+如果是类组件，react-docgen-typescript的实现方式是先获取类的类型的构造器签名，然后拿到它的返回值类型中的props定义。  
+由于测试使用的是类组件，查看断点打到sig.getReturnType的结果，发现果然和预想的不一致。
 
-## todo 
-还没完
+## Understanding typescript
+查看typescript的[wiki](https://github.com/microsoft/TypeScript/wiki/Architectural-Overview)页面，发现在typescript的处理过程中有一个Pre-processor的过程，它的描述是这样的：
+>The "Compilation Context" refers to all files involved in a "program". The context is created by inspecting all files passed in to the compiler on the command line, in order, and then adding any files they may reference directly or indirectly through import statements and /// <reference path=... /> tags. The result of walking the reference graph is an ordered list of source files, that constitute the program. When resolving imports, preference is given to ".ts" files over ".d.ts" files to ensure the most up-to-date files are processed. The compiler does a node-like process to resolve imports by walking up the directory chain to find a source file with a .ts or .d.ts extension matching the requested import. Failed import resolution does not result in an error, as an ambient module could be already declared.
+  
+typescript会扫描源文件对应的import语句和reference。查看项目内的文件，原来没有引入react的类型定义@types/react。自然，typescript无法从react的js文件中提取到继承自React.Component的对象的构造器的返回值应该是一个怎样的对象，因此就得不到正确的类型了。相关的逻辑在Typescript API的createProgram方法中有出现。
+```js
+    // load type declarations specified via 'types' argument or implicitly from types/ and node_modules/@types folders
+    var typeReferences = rootNames.length ? ts.getAutomaticTypeDirectiveNames(options, host) : ts.emptyArray;
+    if (typeReferences.length) {
+        // This containingFilename needs to match with the one used in managed-side
+        var containingDirectory = options.configFilePath ? ts.getDirectoryPath(options.configFilePath) : host.getCurrentDirectory();
+        var containingFilename = ts.combinePaths(containingDirectory, "__inferred type names__.ts");
+        var resolutions = resolveTypeReferenceDirectiveNamesWorker(typeReferences, containingFilename);
+        for (var i = 0; i < typeReferences.length; i++) {
+            processTypeReferenceDirective(typeReferences[i], resolutions[i]);
+        }
+    }
+```
+typeReferences是需要查找类型定义的包，resolutions是查找到的存在类型定义的文件。正如上述Pre-processor中描述的那样，preference is given to ".ts" files over ".d.ts" files to ensure the most up-to-date files are processed，.ts文件的优先级比.d.ts文件的优先级高。在安装了@types/react后，Array中出现一项
+```js
+{resolvedFileName:"/Users/lzh/git/test/node_modules/@types/react/index.d.ts"}
+```
+
 ## Conclusion
-在使用typescript相关API时需要先加载对应的类型定义文件啊！！！
+1. 在使用typescript相关API时注意需要先加载对应的类型定义文件。
+2. 学好typescript。
