@@ -1,9 +1,20 @@
 ---
 menu: typescript
 ---
-# typescript架构概览
+# Typescript架构概览
 
 ## Background
 在上次使用react-docgen-typescript的经历之后，决定好好阅读一下Typescript提供的编程支持。本文主要内容解读自Typescript在github上的[wiki文档](https://github.com/microsoft/TypeScript/wiki/Architectural-Overview)（该文档已经很久没有人维护了T T）。
 
 ## Layers
+Typescript API为了满足不同层次上的抽象、使用和扩展，提供了许多不同抽象层次的模块。以下说明一些常用模块
+#### Core TypeScript Compiler
+这是TypeScript的核心模块，与text、ast、symbol、type、signature相关的方法都可以在其中找到。它们构成了TypeScript的基础服务。
+#### Standalone TypeScript Compiler
+利用Typescript基础API开发的cli编译工具，简写tsc，在很多工具库和框架中会使用tsc中的命令进行文件编译。
+#### Language Service
+Language Service主要面向类编辑器应用。Language Service利用下层的API提供了一些典型的编辑器服务，例如补全、签名提示、格式化等。
+
+## Data Structures
+#### Program
+todo...
