@@ -1,0 +1,90 @@
+---
+menu: typescript
+---
+# Typescript依赖注入
+
+## Background
+之前看到一个库typedi实现了DI方案，觉得比较炫酷，于是打算自己写一个mini版的依赖注入。
+
+## Theory
+依赖注入的基本原理是利用一些手段（如静态分析方法）来标记需要注入的对象的符号，同时提供标记方法（通常是注解，js领域上则是decorator）来在全局收集可以被注入到其他对象上的实例对应的类。所以要点只有3个：  
+1. 全局查找和注册的服务
+2. 使用装饰器进行注册和注入，ts(和js)现已原生支持
+3. 对注入进行分析和自动查找并注入
+
+## Problem
+困难主要在于如何获取注入对象的类型。由于Typescript在编译为js后是不保留类型信息的，所以必须通过一些支持方法来让装饰器知道注入的类型信息。事实上，ts对此也有原生的支持方式。
+
+## Solution
+在tsconfig的"compilerOptions"中设置"experimentalDecorators": true，"emitDecoratorMetadata": true, 在全局环境下首先引入reflect-metadata库对Reflect API作扩展。
+```js
+import 'reflect-metadata'
+```
+对应的服务注册和查找的简单实现如下
+```js
+const store = new Map<any, any>();
+
+const Registry = {
+  naming: <T extends new () => any>(constructor: T) => {
+    store.set(constructor, new constructor())
+  },
+  lookup: <T extends new () => any>(constructor: T) => {
+    return store.get(constructor) as InstanceType<T>
+  },
+  inject: <T>(target: T, propertyKey: string | symbol) => {
+    const key = Reflect.getMetadata("design:type", target, propertyKey);
+    (target as any)[propertyKey] = store.get(key)
+  }
+}
+export default Registry
+```
+其中naming装饰器用户在映射表中注入类，inject则查找并进行注入。可以注意一下其中的Reflect.getMetadata方法，这是由reflect-metadata扩展实现的，需要和Typescript的编译相结合。
+
+
+```js
+import Registry from "../utils/Registry"
+import ModelService from "./ModelService"
+@Registry.naming
+class LanguageService {
+
+  @Registry.inject
+  private modelService!: ModelService
+  constructor() {
+  }
+}
+
+export default LanguageService
+```
+这是一个注册和注入的例子，相关的方法在Registry中注册了LanguageService的实例，并自动注入ModelService的实例。
+
+## In the deep
+具体的原理，可以查看Typescript编译后的文件来理解
+```js
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const Registry_1 = require("../utils/Registry");
+const ModelService_1 = require("./ModelService");
+let LanguageService = class LanguageService {
+    constructor() {
+    }
+};
+__decorate([
+    Registry_1.default.inject,
+    __metadata("design:type", ModelService_1.default)
+], LanguageService.prototype, "modelService", void 0);
+LanguageService = __decorate([
+    Registry_1.default.naming,
+    __metadata("design:paramtypes", [])
+], LanguageService);
+exports.default = LanguageService;
+```
+很容易理解的是，在开启记录meta的情况下，Typescript在编译时额外注入来类型信息以供装饰器使用。具体可以查阅(reflect-metadata)[https://github.com/rbuckton/reflect-metadata]
