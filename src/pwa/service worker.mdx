@@ -1,0 +1,34 @@
+---
+menu: pwa
+---
+
+# Service Worker
+作为PWA的核心功能之一，sw受到了google的大力推广。在一年前iOS 11与Edge 17支持sw后，在主流浏览器里大范围应用sw成为了可能。
+
+## 核心特性
+- 独立线程： 这意味着sw不阻塞主线程的执行，同时在其中不能访问到DOM。另外，由于sw被设计为完全异步的，其中不允许使用localStorage。
+- 请求拦截： sw核心的资源缓存功能是采用监听、拦截浏览器请求和CacheStorage（基于Map<Request, Response>）来完成的。事实上，它类似一个代理服务器，我们可以用它来代理请求，无论是使用缓存还是其他数据源。这也是可以用它来实现离线Web应用的原因（历史上，我们使用appcache，即使用缓存资源清单manifest，这种手段在支持sw后已经被废弃）。
+
+## 生命周期
+- installing：注册阶段标志着注册行为的开始（通过navigator.serviceWorker。register来触发）。这个阶段用于初始化一些资源例如离线缓存清单。
+- installed：表示sw的安装已经完成，等待客户端使用的其他worker关闭后即可激活新的sw。
+- activating： 在没有其他sw控制客户端时，由installed阶段进入此阶段。这个阶段用于清除其他worker产生的缓存等。
+- activated： 开始处理functional events。
+- redundant： 被其他sw代替或取消注册sw。
+
+## 相关事件
+- 生命周期相关事件： install，activate
+- worker和主线程交互： message
+- functional events： fetch、sync和push，分别用于处理请求资源、同步和推送。
+
+## 注意事项与常见问题
+
+- HTTPS服务器：由于sw的强大作用，极易产生巨大的安全隐患，要求使用于HTTPS。
+- 没有拦截到请求：sw的作用域和所在目录一致，一般如果需要拦截所有请求需要将sw的文件serve到根目录下，即如/sw.js。
+- sw文件不允许跨域。
+
+## 其他
+- 优雅降级：如果浏览器不支持sw，可以无缝降级到正常的浏览器行为中去。如果不支持sw但是支持appcache，将正常使用appcache作为缓存。如果浏览器支持两者，则忽略appcache并且使用sw。
+
+## 相关链接
+[MDN: Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers)
